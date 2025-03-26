@@ -1,2 +1,2 @@
-print("Fuck you!")
-print("Hello World")
+import psycopg2
+
