@@ -78,7 +78,7 @@ class LoginRequest(BaseModel):
     password: str
 
 # Verbinde mit dem Datenbank Managment System
-dbcon = psycopg2.connect(dbname='ScribNET_template', user='oliver', host='192.168.0.46')
+dbcon = psycopg2.connect(dbname='ScribNET_template', user='oliver', host='localhost')
 
 # Instanziierung der FastAPI-Anwendung
 app = FastAPI()
