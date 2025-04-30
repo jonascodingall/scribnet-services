@@ -1,3 +1,4 @@
+#!/bin/env python3
 import bcrypt, psycopg2
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
@@ -180,38 +181,22 @@ def register_user(reg: RegisterRequest) -> UserPublic:
     Raises:
         HTTPException 400: Wenn E-Mail bereits registriert.
     """
-    with dbcon.cursor() as dbcur:
-        reg = dict(reg)
-        reg.update({'password': bcrypt.hashpw(reg["password"].encode(), bcrypt.gensalt()).decode()})
-        try:
-            dbcur.execute('''INSERT INTO users (username, email, password) VALUES (%(username)s, %(email)s, %(password)s) RETURNING user_id, avatar''', reg)
-        except psycopg2.errors.UniqueViolation:
-            raise HTTPException(status_code=400, detail="Email already registered")
-        user_id, avatar = dbcur.fetchone()
-        dbcur.execute("COMMIT;")
-    return UserPublic(id = user_id, username = reg["username"], email = reg["email"], avatar = avatar, status = 'null')
-
-
-
-    """
-    if any(u.email == reg.email for u in user_store):
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    hashed_pw = bcrypt.hashpw(reg.password.encode(), bcrypt.gensalt()).decode()
-    new_id = max((u.id for u in user_store), default=0) + 1
-
-    new_user = User(
-        id=new_id,
-        username=reg.username,
-        email=reg.email,
-        password=hashed_pw,
-        avatar="default.png",
-        status="offline",
-    )
-    print(new_user)
-    user_store.append(new_user)
-    return UserPublic(**new_user.model_dump())
-    """
+    with dbcon:
+        with dbcon.cursor() as dbcur:
+            reg = dict(reg)
+            reg.update({'password': bcrypt.hashpw(reg["password"].encode(), bcrypt.gensalt()).decode()})
+            try:
+                dbcur.execute('''INSERT INTO users (username, email, password) VALUES (%(username)s, %(email)s, %(password)s) RETURNING user_id, avatar''', reg)
+            except psycopg2.errors.UniqueViolation as unique:
+                match unique:
+                    case 'duplicate key value violates unique constraint "users_username_user_id_key"':
+                        raise HTTPException(status_code=400, detail="Email already registered")
+                    case 'duplicate key value violates unique constraint "users_email_key"':
+                        raise HTTPException(status_code=400, detail="Username already registered")
+                    case _:
+                        raise psycopg2.errors.UniqueViolation(unique)
+            user_id, avatar = dbcur.fetchone()
+        return UserPublic(id = user_id, username = reg["username"], email = reg["email"], avatar = avatar, status = 'null')
 
 
 @app.post(
