@@ -96,15 +96,6 @@ app = FastAPI()
 
 # In-Memory-Datenstrukturen (nur zu Demonstrationszwecken)
 connected_users: Dict[int, WebSocket] = {}
-message_store: List[Message] = []
-user_store: List[User] = [
-    User(id=1, username="alice", email="alice@example.com", password=bcrypt.hashpw("1234".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"), avatar="https://avatar.iran.liara.run/public/47", status="online"),
-    User(id=2, username="bob", email="bob@example.com", password=bcrypt.hashpw("1234".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"), avatar="https://avatar.iran.liara.run/public/47", status="offline"),
-    User(id=3, username="carol", email="carol@example.com", password=bcrypt.hashpw("1234".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"), avatar="https://avatar.iran.liara.run/public/47", status="online"),
-    User(id=4, username="dave", email="dave@example.com", password=bcrypt.hashpw("1234".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"), avatar="https://avatar.iran.liara.run/public/47", status="online"),
-    User(id=5, username="eve", email="eve@example.com", password=bcrypt.hashpw("1234".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"), avatar="https://avatar.iran.liara.run/public/47", status="offline"),
-]
-
 
 @app.websocket("/messages/{user_id}")
 async def messages(user_id: int, websocket: WebSocket, token: str = Cookie(None)):
