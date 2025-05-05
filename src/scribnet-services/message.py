@@ -1,5 +1,5 @@
 #!/bin/env python3
-import bcrypt, psycopg2
+import bcrypt, psycopg2, psycopg2.extras
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
@@ -110,7 +110,10 @@ async def messages(user_id: int, websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             msg = Message.model_validate_json(data)
-            message_store.append(msg)
+
+            with dbcon:
+                with dbcon.cursor() as dbcur:
+                    dbcur.execute('''INSERT INTO messages (sender_id, receiver_id, message, creation_timestamp) VALUES (%(sender_id)s, %(receiver_id)s, %(content)s, %(timestamp)s)''', dict(msg))
 
             # Nachricht an Empfänger senden, falls online
             receiver_ws: Optional[WebSocket] = connected_users.get(msg.receiver_id)
@@ -212,7 +215,12 @@ def login_user(login: LoginRequest) -> UserPublic:
     Raises:
         HTTPException 401: Bei ungültigen Anmeldedaten.
     """
-    user = next((u for u in user_store if u.email == login.email), None)
+    with dbcon.cursor(cursor_factory=psycopg2.extras.DictCursor) as dbcur:
+        dbcur.execute('''SELECT user_id as id, username, email, avatar FROM users WHERE email = %s''', (login.email,))
+        userdict = dbcur.fetchone()
+        userdict['status'] = 'online'
+        user = UserPublic(userdict)
+
     if not user or not bcrypt.checkpw(login.password.encode(), user.password.encode()):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
